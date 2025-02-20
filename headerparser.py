@@ -1,6 +1,7 @@
 import os
 import sys
 import struct
+import pandas as pd
 
 # Using Wikipedia as a reference to breakdown the ELF Format
 # https://en.wikipedia.org/wiki/Executable_and_Linkable_Format
@@ -35,6 +36,7 @@ elf_ph_entries = ""
 elf_sh_entry_size = ""
 elf_sh_entries = ""
 elf_sh_index = ""
+elf_headers_df = []
 
 
 output_text = ""
@@ -306,7 +308,146 @@ def parse_elf():
     output_text += "Section Headers Present \t" + elf_sh_entries.lstrip('0') + "\t\t" + str(int(elf_sh_entries, 16)) + "\n"
     output_text += "Section Header index \t\t" + elf_sh_index.lstrip('0') + "\t\t" + str(int(elf_sh_index, 16)) + "\n"
 
+def parse_elf_ph_32():
+    global file_data
+    global elf_headers_df
+    global data_endian
+    global elf_instruction_set
+    global elf_entry
+    global elf_ph_offset
+    global elf_ph_entry_size
+    global elf_ph_entries
 
+    number_of_entries = int(elf_ph_entries, 16)
+    offset = int(elf_ph_offset, 16)
+    entry_size = int(elf_ph_entry_size, 16)
+
+    p_types = {
+        0x00000000:	"NULL",
+        0x00000001:	"LOAD",
+        0x00000002:	"DYNAMIC",
+        0x00000003:	"INTERP",
+        0x00000004:	"NOTE",
+        0x00000005:	"SHLIB",
+        0x00000006:	"PHDR",
+        0x00000007:	"TLS",
+        0x60000000:	"LOOS",
+        0x6FFFFFFF:	"HIOS",
+        0x70000000:	"LOPROC",
+        0x7FFFFFFF:	"HIPROC"
+    }
+
+    p_flags = {
+        0x1: "X",
+        0x2: "W",
+        0x4: "R"
+    }
+
+    rows = []
+    for i in range(number_of_entries):
+        ph_offset = offset + i * entry_size
+        file_data.seek(ph_offset)
+        ph_data = file_data.read(entry_size)
+
+        if ph_data[:4] in p_types:
+            p_type = p_types[ph_data[:4]]
+
+        p_offset = ph_data[4:8]
+        p_vaddr = ph_data[8:12]
+        p_paddr = ph_data[12:16]
+        p_filesz = ph_data[16:20]
+        p_memsz = ph_data[20:24]
+
+        if ph_data[24:28] in p_flags:
+            p_flags = p_types[ph_data[24:28]]
+        p_align = ph_data[28:32]
+
+        row_dict = {
+            "Index": i,
+            "Type": p_type,
+            "OffsetInFile": p_offset,
+            "VirtualAddr": p_vaddr,
+            "PhysicalAddr": p_paddr,
+            "FileSize": p_filesz,
+            "MemSize": p_memsz,
+            "Flags":p_flags,
+            "Alignment": p_align,
+        }
+        rows.append(row_dict)
+
+    elf_headers_df = pd.DataFrame(rows)
+
+def parse_elf_ph_64():
+    global file_data
+    global elf_headers_df
+    global data_endian
+    global elf_instruction_set
+    global elf_entry
+    global elf_ph_offset
+    global elf_ph_entry_size
+    global elf_ph_entries
+
+    number_of_entries = int(elf_ph_entries, 16)
+    offset = int(elf_ph_offset, 16)
+    entry_size = int(elf_ph_entry_size, 16)
+
+    p_types = {
+        b"\x00\x00\x00\x00":	"NULL",
+        b"\x00\x00\x00\x01":	"LOAD",
+        b"\x00\x00\x00\x02":	"DYNAMIC",
+        b"\x00\x00\x00\x03":	"INTERP",
+        b"\x00\x00\x00\x04":	"NOTE",
+        b"\x00\x00\x00\x05":	"SHLIB",
+        b"\x00\x00\x00\x06":	"PHDR",
+        b"\x00\x00\x00\x07":	"TLS",
+        b"\x60\x00\x00\x00":	"LOOS",
+        b"\x6F\xFF\xFF\xFF":	"HIOS",
+        b"\x70\x00\x00\x00":	"LOPROC",
+        b"\x7F\xFF\xFF\xFF":	"HIPROC"
+    }
+
+    p_flags = {
+        b"\x01": "X",
+        b"\x02": "W",
+        b"\x04": "R"
+    }
+
+    rows = []
+    for i in range(number_of_entries):
+        ph_offset = offset + i * entry_size
+        end = ph_offset + entry_size
+        ph_data = file_data[ph_offset:end]
+
+        if ph_data[:4] in p_types:
+            p_type = p_types[ph_data[:4]]
+        
+        if ph_data[4:88] in p_flags:
+            p_flags = p_types[ph_data[4:8]]
+
+        p_offset = ph_data[8:16]
+        p_vaddr = ph_data[16:24]
+        p_paddr = ph_data[24:32]
+        p_filesz = ph_data[32:40]
+        p_memsz = ph_data[40:48]
+        p_align = ph_data[48:56]
+
+        
+
+        row_dict = {
+            "Index": i,
+            "Type": p_type,
+            "OffsetInFile": p_offset,
+            "VirtualAddr": p_vaddr,
+            "PhysicalAddr": p_paddr,
+            "FileSize": p_filesz,
+            "MemSize": p_memsz,
+            "Flags":p_flags,
+            "Alignment": p_align,
+        }
+        rows.append(row_dict)
+
+    elf_headers_df = pd.DataFrame(rows)
+    print(pd.DataFrame(rows))
 
 
 def parse_pe():
@@ -326,6 +467,18 @@ if __name__ == '__main__':
     if file_type == "ELF":
         parse_elf()
         print(output_text)
+        user_input = input("Do you want to parse Program Headers? (y/n) ".strip().lower())
+        if user_input == "y":
+            if elf_class == "32 Bit":
+                parse_elf_ph_32()
+
+            elif elf_class == "64 Bit":
+                parse_elf_ph_64()
+
+            else:
+                print("neither")
+        else:
+            print("Goodbye")
     
     elif file_type == "PE":
         parse_pe()
