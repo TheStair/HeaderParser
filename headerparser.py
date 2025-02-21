@@ -36,8 +36,8 @@ elf_ph_entries = ""
 elf_sh_entry_size = ""
 elf_sh_entries = ""
 elf_sh_index = ""
-elf_headers_df = []
-
+elf_pheaders_df = pd.DataFrame()
+elf_sheaders_df = pd.DataFrame()
 
 output_text = ""
 
@@ -67,6 +67,7 @@ def identify_filetype():
 
 
 #I was having some issues with swapping from little to big endian due to the byte literal strings
+#Made with help from ChatGPT
 def little_to_big(string):
     raw_bytes = bytes.fromhex(string)
     value = int.from_bytes(raw_bytes, byteorder="little")
@@ -308,11 +309,11 @@ def parse_elf():
     output_text += "Section Headers Present \t" + elf_sh_entries.lstrip('0') + "\t\t" + str(int(elf_sh_entries, 16)) + "\n"
     output_text += "Section Header index \t\t" + elf_sh_index.lstrip('0') + "\t\t" + str(int(elf_sh_index, 16)) + "\n"
 
+#Parses 32 Bit ELF Program Header Table and returns a pandas dataframe
 def parse_elf_ph_32():
     global file_data
-    global elf_headers_df
+    global elf_pheaders_df
     global data_endian
-    global elf_instruction_set
     global elf_entry
     global elf_ph_offset
     global elf_ph_entry_size
@@ -357,8 +358,9 @@ def parse_elf_ph_32():
     rows = []
     for i in range(number_of_entries):
         ph_offset = offset + i * entry_size
-        file_data.seek(ph_offset)
-        ph_data = file_data.read(entry_size)
+        end = ph_offset + entry_size
+        ph_data = file_data[ph_offset:end]
+
 
         type_data = ph_data[:4]
         type_data = type_data[::-1]
@@ -382,30 +384,30 @@ def parse_elf_ph_32():
         p_memsz = p_memsz[::-1].hex().lstrip('0')
 
         if ph_data[24] in p_flags:
-            p_flags = p_types[ph_data[24]]
+            p_flag = p_flags[ph_data[24]]
 
-        p_align = ph_data[28].hex()
+        p_align = hex(ph_data[28])
 
         row_dict = {
-            "Index": i,
             "Type": p_type,
             "OffsetInFile": p_offset,
             "VirtualAddr": p_vaddr,
             "PhysicalAddr": p_paddr,
             "FileSize": p_filesz,
             "MemSize": p_memsz,
-            "Flags":p_flags,
+            "Flags":p_flag,
             "Alignment": p_align,
         }
         rows.append(row_dict)
 
-    elf_headers_df = pd.DataFrame(rows)
+    elf_pheaders_df = pd.DataFrame(rows)
+    print(elf_pheaders_df)
 
+#Parses 64 Bit ELF Program Header Table and returns a pandas dataframe
 def parse_elf_ph_64():
     global file_data
-    global elf_headers_df
+    global elf_pheaders_df
     global data_endian
-    global elf_instruction_set
     global elf_entry
     global elf_ph_offset
     global elf_ph_entry_size
@@ -430,14 +432,15 @@ def parse_elf_ph_64():
         b"\x6F\xFF\xFF\xFF":	"HIOS",
         b"\x70\x00\x00\x00":	"LOPROC",
         b"\x7F\xFF\xFF\xFF":	"HIPROC",
-        b"\x64\x74\xe5\x50":    "GNU_PROPERTY",
+        b"\x64\x74\xe5\x50":    "GNU_EH_FRAME",
         b"\x64\x64\xe5\x50":    "SUNW_UNWIND",
         b"\x64\x74\xe5\x51":    "GNU_STACK",
         b"\x64\x74\xe5\x52":    "GNU_RELRO",
         b"\x65\xa3\xdb\xe6":    "OPENBSD_RANDOMIZE",
         b"\x65\xa3\xdb\xe7":    "OPENBSD_WXNEEDED",
         b"\x65\xa4\x1b\xe6":    "OPENBSD_BOOTDATA",
-        b"\x70\x00\x00\x00":    "ARM_ARCHEXT"
+        b"\x70\x00\x00\x00":    "ARM_ARCHEXT",
+        b"\x64\x74\xe5\x53":    "GNU_PROPERTY" 
     }
 
     p_flags = {
@@ -483,12 +486,11 @@ def parse_elf_ph_64():
         p_memsz = ph_data[40:48]
         p_memsz = p_memsz[::-1].hex().lstrip('0')
 
-        p_align = ph_data[48:49].hex()
+        p_align = hex(ph_data[48:49])
 
         
 
         row_dict = {
-            "Index": i,
             "Type": p_type,
             "OffsetInFile": p_offset,
             "VirtualAddr": p_vaddr,
@@ -500,9 +502,257 @@ def parse_elf_ph_64():
         }
         rows.append(row_dict)
 
-    elf_headers_df = pd.DataFrame(rows)
+    elf_pheaders_df = pd.DataFrame(rows)
     print(pd.DataFrame(rows))
 
+
+def parse_elf_sh_32():
+    global file_data
+    global elf_sheaders_df
+    global data_endian
+    global elf_entry
+    global elf_sh_offset
+    global elf_sh_entry_size
+    global elf_sh_entries
+    
+    number_of_entries = int(elf_sh_entries, 16)
+    offset = int(elf_sh_offset, 16)
+    entry_size = int(elf_sh_entry_size, 16)
+
+    #print(offset)
+
+    s_types = {
+        0x00:	"NULL",
+        0x1:	"PROGBITS",
+        0x2:	"SYMTAB",
+        0x3:	"STRTAB",
+        0x4:	"RELA",
+        0x5:	"HASH",
+        0x6:	"DYNAMIC",
+        0x7:	"NOTE",
+        0x8:	"NOBITS",
+        0x9:	"REL",
+        0x0A:	"SHLIB",
+        0x0B:	"DYNSYM",
+        0x0E:	"INIT_ARRAY",
+        0x0F:	"FINI_ARRAY",
+        0x10:	"PREINIT_ARRAY",
+        0x11:	"GROUP",
+        0x12:	"SYMTAB_SHNDX",
+        0x13:	"NUM",
+        0x60:   "LOOS",
+        0xf6:   "GNU_HASH",
+        0xff:   "VERSYM",
+        0xfe:   "VERNEED",
+    }
+
+    #I Used ReadELF and ChatGPT to name flags here
+    flags = {
+        0x0:    "0",
+        0x1:    "W",
+        0x2:    "A",
+        0x3:    "WA",
+        0x4:    "X",
+        0x5:    "WX",
+        0x6:    "AZ",
+        0x7:    "WAX",
+        0x10:   "M",
+        0x20:   "S",
+        0x40:   "I",
+        0x42:   "AI",
+        0x48:   "MS",
+        0x80:   "LO",
+
+    }
+
+    rows = []
+
+    for i in range(number_of_entries):
+        sh_offset = offset + i * entry_size
+        end = sh_offset + entry_size
+        sh_data = file_data[sh_offset:end]
+
+
+        s_name = sh_data[:4]
+        s_name = s_name[::-1].hex().lstrip('0')
+
+        type_data = sh_data[4]
+
+        #print(hex(type_data))
+        if type_data in s_types:
+            s_type = s_types[type_data]
+        else: s_type = "uknown"
+        
+        #print(type_data)
+
+        flag_data = sh_data[8]
+        if flag_data in flags:
+            s_flag = flags[flag_data]
+        else: s_flag = "unknown"
+
+        s_vaddr = sh_data[12:16]
+        s_vaddr = s_vaddr[::-1].hex().lstrip('0')
+
+        s_offset = sh_data[16:20]
+        s_offset = s_offset[::-1].hex().lstrip('0')
+
+        s_size = sh_data[20:24]
+        s_size = s_size[::-1].hex().lstrip('0')
+
+        s_link = sh_data[24:28]
+        s_link = s_link[::-1].hex().lstrip('0')
+
+        s_info = sh_data[28:32]
+        s_info = s_info[::-1].hex().lstrip('0')
+
+        s_align = sh_data[32:36]
+        s_align = s_align[::-1].hex().lstrip('0')
+
+        s_entry_size = sh_data[36:40]
+        s_entry_size = s_entry_size[::-1].hex().lstrip('0')
+
+        
+
+        row_dict = {
+            "Name Offset":  s_name,
+            "Type":         s_type,
+            "Flags":        s_flag,
+            "VirtualAddr":  s_vaddr,
+            "OffsetInFile": s_offset,
+            "Size":         s_size,
+            "Link":         s_link,
+            "Info":         s_info,
+            "Alignment":    s_align,
+            "Entry Size":   s_entry_size
+        }
+        rows.append(row_dict)
+
+    elf_sheaders_df = pd.DataFrame(rows)
+    print(pd.DataFrame(rows))
+
+def parse_elf_sh_64():
+    global file_data
+    global elf_sheaders_df
+    global data_endian
+    global elf_entry
+    global elf_sh_offset
+    global elf_sh_entry_size
+    global elf_sh_entries
+
+    number_of_entries = int(elf_sh_entries, 16)
+    offset = int(elf_sh_offset, 16)
+    entry_size = int(elf_sh_entry_size, 16)
+
+    #print(offset)
+
+    s_types = {
+        0x00:	"NULL",
+        0x1:	"PROGBITS",
+        0x2:	"SYMTAB",
+        0x3:	"STRTAB",
+        0x4:	"RELA",
+        0x5:	"HASH",
+        0x6:	"DYNAMIC",
+        0x7:	"NOTE",
+        0x8:	"NOBITS",
+        0x9:	"REL",
+        0x0A:	"SHLIB",
+        0x0B:	"DYNSYM",
+        0x0E:	"INIT_ARRAY",
+        0x0F:	"FINI_ARRAY",
+        0x10:	"PREINIT_ARRAY",
+        0x11:	"GROUP",
+        0x12:	"SYMTAB_SHNDX",
+        0x13:	"NUM",
+        0x60:   "LOOS",
+        0xf6:   "GNU_HASH",
+        0xff:   "VERSYM",
+        0xfe:   "VERNEED",
+    }
+
+    #I Used ReadELF and ChatGPT to name flags here
+    flags = {
+        0x0:    "0",
+        0x1:    "W",
+        0x2:    "A",
+        0x3:    "WA",
+        0x4:    "X",
+        0x5:    "WX",
+        0x6:    "AZ",
+        0x7:    "WAX",
+        0x10:   "M",
+        0x20:   "S",
+        0x40:   "I",
+        0x42:   "AI",
+        0x48:   "MS",
+        0x80:   "LO",
+
+    }
+
+    rows = []
+
+    for i in range(number_of_entries):
+        sh_offset = offset + i * entry_size
+        end = sh_offset + entry_size
+        sh_data = file_data[sh_offset:end]
+
+
+        s_name = sh_data[:4]
+        s_name = s_name[::-1].hex().lstrip('0')
+
+        type_data = sh_data[4]
+
+        #print(hex(type_data))
+        if type_data in s_types:
+            s_type = s_types[type_data]
+        else: s_type = "uknown"
+        
+
+        flag_data = sh_data[8]
+        if flag_data in flags:
+            s_flag = flags[flag_data]
+        
+        else: s_flag = "unknown"
+        # print(flag_data)
+        s_vaddr = sh_data[16:24]
+        s_vaddr = s_vaddr[::-1].hex().lstrip('0')
+
+        s_offset = sh_data[24:32]
+        s_offset = s_offset[::-1].hex().lstrip('0')
+
+        s_size = sh_data[32:40]
+        s_size = s_size[::-1].hex().lstrip('0')
+
+        s_link = sh_data[40:44]
+        s_link = s_link[::-1].hex().lstrip('0')
+
+        s_info = sh_data[44:48]
+        s_info = s_info[::-1].hex().lstrip('0')
+
+        s_align = sh_data[48:56]
+        s_align = s_align[::-1].hex().lstrip('0')
+
+        s_entry_size = sh_data[56:64]
+        s_entry_size = s_entry_size[::-1].hex().lstrip('0')
+
+        
+
+        row_dict = {
+            "Name Offset":  s_name,
+            "Type":         s_type,
+            "Flags":        s_flag,
+            "VirtualAddr":  s_vaddr,
+            "OffsetInFile": s_offset,
+            "Size":         s_size,
+            "Link":         s_link,
+            "Info":         s_info,
+            "Alignment":    s_align,
+            "Entry Size":   s_entry_size
+        }
+        rows.append(row_dict)
+
+    elf_sheaders_df = pd.DataFrame(rows)
+    print(pd.DataFrame(rows))
 
 def parse_pe():
     print("Parsing PE Header")
@@ -527,12 +777,22 @@ if __name__ == '__main__':
                 parse_elf_ph_32()
 
             elif elf_class == "64 Bit":
+                print("\n")
                 parse_elf_ph_64()
-
-            else:
-                print("neither")
         else:
             print("Goodbye")
+                
+        user_input = input("Do you want to parse Section Headers? (y/n) ").strip().lower()
+        if user_input == "y":
+            if elf_class == "32 Bit":
+                parse_elf_sh_32()
+
+            elif elf_class == "64 Bit":
+                print("\n")
+                parse_elf_sh_64()
+        else:
+            print("Goodbye")
+
     
     elif file_type == "PE":
         parse_pe()
