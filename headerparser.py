@@ -323,24 +323,35 @@ def parse_elf_ph_32():
     entry_size = int(elf_ph_entry_size, 16)
 
     p_types = {
-        0x00000000:	"NULL",
-        0x00000001:	"LOAD",
-        0x00000002:	"DYNAMIC",
-        0x00000003:	"INTERP",
-        0x00000004:	"NOTE",
-        0x00000005:	"SHLIB",
-        0x00000006:	"PHDR",
-        0x00000007:	"TLS",
-        0x60000000:	"LOOS",
-        0x6FFFFFFF:	"HIOS",
-        0x70000000:	"LOPROC",
-        0x7FFFFFFF:	"HIPROC"
+        b"\x00\x00\x00\x00":	"NULL",
+        b"\x00\x00\x00\x01":	"LOAD",
+        b"\x00\x00\x00\x02":	"DYNAMIC",
+        b"\x00\x00\x00\x03":	"INTERP",
+        b"\x00\x00\x00\x04":	"NOTE",
+        b"\x00\x00\x00\x05":	"SHLIB",
+        b"\x00\x00\x00\x06":	"PHDR",
+        b"\x00\x00\x00\x07":	"TLS",
+        b"\x60\x00\x00\x00":	"LOOS",
+        b"\x6F\xFF\xFF\xFF":	"HIOS",
+        b"\x70\x00\x00\x00":	"LOPROC",
+        b"\x7F\xFF\xFF\xFF":	"HIPROC",
+        b"\x64\x74\xe5\x50":    "GNU_PROPERTY",
+        b"\x64\x64\xe5\x50":    "SUNW_UNWIND",
+        b"\x64\x74\xe5\x51":    "GNU_STACK",
+        b"\x64\x74\xe5\x52":    "GNU_RELRO",
+        b"\x65\xa3\xdb\xe6":    "OPENBSD_RANDOMIZE",
+        b"\x65\xa3\xdb\xe7":    "OPENBSD_WXNEEDED",
+        b"\x65\xa4\x1b\xe6":    "OPENBSD_BOOTDATA",
+        b"\x70\x00\x00\x00":    "ARM_ARCHEXT"
     }
 
     p_flags = {
-        0x1: "X",
-        0x2: "W",
-        0x4: "R"
+        1: "X",
+        2: "W",
+        4: "R",
+        5: "RX",
+        6: "WR",
+        7: "WRX"
     }
 
     rows = []
@@ -349,18 +360,31 @@ def parse_elf_ph_32():
         file_data.seek(ph_offset)
         ph_data = file_data.read(entry_size)
 
-        if ph_data[:4] in p_types:
-            p_type = p_types[ph_data[:4]]
+        type_data = ph_data[:4]
+        type_data = type_data[::-1]
+        if type_data in p_types:
+            p_type = p_types[type_data]
+        else: p_type = "uknown"
 
         p_offset = ph_data[4:8]
-        p_vaddr = ph_data[8:12]
-        p_paddr = ph_data[12:16]
-        p_filesz = ph_data[16:20]
-        p_memsz = ph_data[20:24]
+        p_offset = p_offset[::-1].hex().lstrip('0')
 
-        if ph_data[24:28] in p_flags:
-            p_flags = p_types[ph_data[24:28]]
-        p_align = ph_data[28:32]
+        p_vaddr = ph_data[8:12]
+        p_vaddr = p_vaddr[::-1].hex().lstrip('0')
+
+        p_paddr = ph_data[12:16]
+        p_paddr = p_paddr[::-1].hex().lstrip('0')
+
+        p_filesz = ph_data[16:20]
+        p_filesz = p_filesz[::-1].hex().lstrip('0')
+
+        p_memsz = ph_data[20:24]
+        p_memsz = p_memsz[::-1].hex().lstrip('0')
+
+        if ph_data[24] in p_flags:
+            p_flags = p_types[ph_data[24]]
+
+        p_align = ph_data[28].hex()
 
         row_dict = {
             "Index": i,
@@ -391,6 +415,8 @@ def parse_elf_ph_64():
     offset = int(elf_ph_offset, 16)
     entry_size = int(elf_ph_entry_size, 16)
 
+
+    #Found more types online https://reviews.llvm.org/D70959
     p_types = {
         b"\x00\x00\x00\x00":	"NULL",
         b"\x00\x00\x00\x01":	"LOAD",
@@ -403,13 +429,24 @@ def parse_elf_ph_64():
         b"\x60\x00\x00\x00":	"LOOS",
         b"\x6F\xFF\xFF\xFF":	"HIOS",
         b"\x70\x00\x00\x00":	"LOPROC",
-        b"\x7F\xFF\xFF\xFF":	"HIPROC"
+        b"\x7F\xFF\xFF\xFF":	"HIPROC",
+        b"\x64\x74\xe5\x50":    "GNU_PROPERTY",
+        b"\x64\x64\xe5\x50":    "SUNW_UNWIND",
+        b"\x64\x74\xe5\x51":    "GNU_STACK",
+        b"\x64\x74\xe5\x52":    "GNU_RELRO",
+        b"\x65\xa3\xdb\xe6":    "OPENBSD_RANDOMIZE",
+        b"\x65\xa3\xdb\xe7":    "OPENBSD_WXNEEDED",
+        b"\x65\xa4\x1b\xe6":    "OPENBSD_BOOTDATA",
+        b"\x70\x00\x00\x00":    "ARM_ARCHEXT"
     }
 
     p_flags = {
-        b"\x01": "X",
-        b"\x02": "W",
-        b"\x04": "R"
+        1: "X",
+        2: "W",
+        4: "R",
+        5: "RX",
+        6: "WR",
+        7: "WRX"
     }
 
     rows = []
@@ -418,18 +455,35 @@ def parse_elf_ph_64():
         end = ph_offset + entry_size
         ph_data = file_data[ph_offset:end]
 
-        if ph_data[:4] in p_types:
-            p_type = p_types[ph_data[:4]]
+        type_data = ph_data[:4]
+        type_data = type_data[::-1]
+        if type_data in p_types:
+            p_type = p_types[type_data]
+        else: p_type = "uknown"
         
-        if ph_data[4:88] in p_flags:
-            p_flags = p_types[ph_data[4:8]]
+        #print(type_data)
+
+        #Only really care about read, write, and execute
+        flag_data = ph_data[4]
+        if flag_data in p_flags:
+            p_flag = p_flags[flag_data]
 
         p_offset = ph_data[8:16]
+        p_offset = p_offset[::-1].hex().lstrip('0')
+
         p_vaddr = ph_data[16:24]
+        p_vaddr = p_vaddr[::-1].hex().lstrip('0')
+
         p_paddr = ph_data[24:32]
+        p_paddr = p_paddr[::-1].hex().lstrip('0')
+
         p_filesz = ph_data[32:40]
+        p_filesz = p_filesz[::-1].hex().lstrip('0')
+
         p_memsz = ph_data[40:48]
-        p_align = ph_data[48:56]
+        p_memsz = p_memsz[::-1].hex().lstrip('0')
+
+        p_align = ph_data[48:49].hex()
 
         
 
@@ -441,7 +495,7 @@ def parse_elf_ph_64():
             "PhysicalAddr": p_paddr,
             "FileSize": p_filesz,
             "MemSize": p_memsz,
-            "Flags":p_flags,
+            "Flags":p_flag,
             "Alignment": p_align,
         }
         rows.append(row_dict)
@@ -467,7 +521,7 @@ if __name__ == '__main__':
     if file_type == "ELF":
         parse_elf()
         print(output_text)
-        user_input = input("Do you want to parse Program Headers? (y/n) ".strip().lower())
+        user_input = input("Do you want to parse Program Headers? (y/n) ").strip().lower()
         if user_input == "y":
             if elf_class == "32 Bit":
                 parse_elf_ph_32()
