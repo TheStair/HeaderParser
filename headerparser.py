@@ -486,7 +486,7 @@ def parse_elf_ph_64():
         p_memsz = ph_data[40:48]
         p_memsz = p_memsz[::-1].hex().lstrip('0')
 
-        p_align = hex(ph_data[48:49])
+        p_align = ph_data[48:49].hex()
 
         
 
@@ -771,28 +771,20 @@ if __name__ == '__main__':
     if file_type == "ELF":
         parse_elf()
         print(output_text)
-        user_input = input("Do you want to parse Program Headers? (y/n) ").strip().lower()
-        if user_input == "y":
-            if elf_class == "32 Bit":
-                parse_elf_ph_32()
 
-            elif elf_class == "64 Bit":
-                print("\n")
-                parse_elf_ph_64()
+        if elf_class == "32 Bit":
+            print("\n")
+            parse_elf_ph_32()
+            print("\n")
+            parse_elf_sh_32()
+
+        elif elf_class == "64 Bit":
+            print("\n")
+            parse_elf_ph_64()
+            print("\n")
+            parse_elf_sh_64()
         else:
             print("Goodbye")
-                
-        user_input = input("Do you want to parse Section Headers? (y/n) ").strip().lower()
-        if user_input == "y":
-            if elf_class == "32 Bit":
-                parse_elf_sh_32()
-
-            elif elf_class == "64 Bit":
-                print("\n")
-                parse_elf_sh_64()
-        else:
-            print("Goodbye")
-
     
     elif file_type == "PE":
         parse_pe()
