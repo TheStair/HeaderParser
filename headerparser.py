@@ -645,7 +645,7 @@ def parse_elf_sh_32():
         0x20:   "S",
         0x40:   "I",
         0x42:   "AI",
-        0x48:   "MS",
+        0x30:   "MS",
         0x80:   "LO",
 
     }
@@ -687,6 +687,7 @@ def parse_elf_sh_32():
         if flag_data in flags:
             s_flag = flags[flag_data]
         else: s_flag = "unknown"
+        # print(hex(flag_data))
 
         # Get Section Header Virtual Address
         s_vaddr = sh_data[12:16]
@@ -798,7 +799,7 @@ def parse_elf_sh_64():
         0x20:   "S",
         0x40:   "I",
         0x42:   "AI",
-        0x48:   "MS",
+        0x30:   "MS",
         0x80:   "LO",
 
     }
