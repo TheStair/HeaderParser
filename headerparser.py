@@ -53,6 +53,9 @@ def read_file(input_file):
     file_length = len(file_data)
 
 
+
+
+
 # Identifies the file as ELF or PE
 def identify_filetype():
     global file_type
@@ -71,6 +74,8 @@ def identify_filetype():
         sys.exit(1)
 
 
+
+
 # I was having some issues with swapping from little to big endian due to the byte literal strings
 # Made with help from ChatGPT
 # Swaps Little Endian to Big Endian
@@ -80,6 +85,9 @@ def little_to_big(string):
     big_endian_bytes = value.to_bytes(len(raw_bytes), byteorder="big")
     big_endian_hex_str = big_endian_bytes.hex()
     return big_endian_hex_str
+
+
+
 
 # Parses the ELF File Header and Assigns values to global variables
 # Modifies output_text with the parsed values and formats for output
@@ -451,8 +459,6 @@ def parse_elf_ph_32():
 
 
 
-
-
 # Parses 64 Bit ELF Program Header Table and returns a pandas dataframe
 def parse_elf_ph_64():
     # Declare global variables
@@ -576,6 +582,9 @@ def parse_elf_ph_64():
 
     # Create a DataFrame from the rows list
     elf_pheaders_df = pd.DataFrame(rows)
+
+
+
 
 # Parses 32 Bit ELF Section Header Table and stores results in elf_sheaders_df
 def parse_elf_sh_32():
@@ -730,7 +739,6 @@ def parse_elf_sh_32():
 
 
 
-
 # Parses 64 Bit ELF Section Header Table and returns a pandas dataframe
 def parse_elf_sh_64():
     # Declare global variables
@@ -875,9 +883,14 @@ def parse_elf_sh_64():
     # Create a DataFrame from the rows list
     elf_sheaders_df = pd.DataFrame(rows)
 
+
+
+
 # Parse PE File Headers
 def parse_pe():
     print("Parsing PE Header")
+
+
 
 
 if __name__ == '__main__':
