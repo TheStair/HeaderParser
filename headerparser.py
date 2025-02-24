@@ -9,38 +9,42 @@ import pandas as pd
 #Source for PE Info
 # https://tech-zealots.com/malware-analysis/pe-portable-executable-structure-malware-analysis-part-2/
 
-target_file = ""
 
+# Declare File Signatures for ELF and PE
 elf_signature = b'\x7F\x45\x4c\x46'
 pe_signature = b'\x4d\x5a'
 
+# Declare Target (Placeholder for user argument)
 file_name = ""
 
+#Declare Universal Variables (Same for PE and ELF)
 data_endian = ""
 file_type = ""
 file_data = b""
 file_length = 0
-
-#elf variables (defined here so later ises can reference global variables easier)
-elf_class = ""
-elf_version = ""
-elf_target_os = ""
-elf_type = ""
-elf_instruction_set = ""
-elf_entry = ""
-elf_ph_offset = ""
-elf_sh_offset = ""
-elf_flags = ""
-elf_ph_entry_size = ''
-elf_ph_entries = ""
-elf_sh_entry_size = ""
-elf_sh_entries = ""
-elf_sh_index = ""
-elf_pheaders_df = pd.DataFrame()
-elf_sheaders_df = pd.DataFrame()
-
 output_text = ""
 
+
+#elf variables (Global to be used in future functionality)
+elf_class = ""                      # 32 v 64 Bit
+elf_version = ""                    # 1 for original ELF
+elf_target_os = ""                  # Target OS
+elf_type = ""                       # Executable Type
+elf_instruction_set = ""            # Instruction Set
+elf_entry = ""                      # Entry Point
+elf_ph_offset = ""                  # Program Header Offset
+elf_sh_offset = ""                  # Section Header Offset
+elf_flags = ""                      # Flags
+elf_ph_entry_size = ''              # Program Header Entry Size
+elf_ph_entries = ""                 # Program Header Entries
+elf_sh_entry_size = ""              # Section Header Entry Size
+elf_sh_entries = ""                 # Section Header Entries
+elf_sh_index = ""                   # Section Header Index
+elf_pheaders_df = pd.DataFrame()    # Program Headers DataFrame
+elf_sheaders_df = pd.DataFrame()    # Section Headers DataFrame
+
+
+# Reads binary into file_data and assigns length to file_length
 def read_file(input_file):
     global file_data, file_length
 
@@ -49,6 +53,7 @@ def read_file(input_file):
     file_length = len(file_data)
 
 
+# Identifies the file as ELF or PE
 def identify_filetype():
     global file_type
     # Comments for Debugging
@@ -66,8 +71,9 @@ def identify_filetype():
         sys.exit(1)
 
 
-#I was having some issues with swapping from little to big endian due to the byte literal strings
-#Made with help from ChatGPT
+# I was having some issues with swapping from little to big endian due to the byte literal strings
+# Made with help from ChatGPT
+# Swaps Little Endian to Big Endian
 def little_to_big(string):
     raw_bytes = bytes.fromhex(string)
     value = int.from_bytes(raw_bytes, byteorder="little")
@@ -75,8 +81,11 @@ def little_to_big(string):
     big_endian_hex_str = big_endian_bytes.hex()
     return big_endian_hex_str
 
+# Parses the ELF File Header and Assigns values to global variables
+# Modifies output_text with the parsed values and formats for output
 def parse_elf():
     print("Parsing ELF Header")
+    # Declare global variables
     global elf_class
     global elf_version
     global elf_target_os
@@ -94,7 +103,7 @@ def parse_elf():
     global elf_sh_entries
     global elf_sh_index
 
-    #Identify class (32 or 64 Bit)
+    # Identify class (32 or 64 Bit) - Sets elf_class
     if file_data[4] == 1: 
         elf_class = "32 Bit"
 
@@ -104,7 +113,7 @@ def parse_elf():
     # print for debug
     #print(elf_class)
 
-    #identify endianness
+    #identify endianness - Sets data_endian
     if file_data[5] == 0x01: 
         data_endian = "Little Endian"
 
@@ -113,13 +122,13 @@ def parse_elf():
     
     #print(data_endian)
 
-    #ELF Version
+    # Sets ELF Version
     if file_data[6] == 0x01:
         elf_version = "1"
     
     #print(elf_version)
 
-    #Identify Target OS
+    # Dictionary of ELF Target Operating Systems
     elf_targets = {
         0x00: "System V", 0x01: "HP-UX", 0x02: "NetBSD", 0x03: "Linux",
         0x04: "GNU Hurd", 0x06:"Solaris", 0x07: "AIX (Monterey)", 0x08: "IRIX",
@@ -128,25 +137,27 @@ def parse_elf():
         0x11: "Nuxi CloudABI", 0x12: "Stratus Technologies OpenVOS",
     }
     
+    # Sets elf_target_os
     if file_data[7] in elf_targets:
         elf_target_os = elf_targets[file_data[7]]
     
     #print(elf_target_os)
 
-    #Identify ELF executable type
+    # Dictionary of ELF Executable Types
     elf_types = {
         b"\x00\x00": "NONE", b"\x01\x00": "REL", b"\x02\x00": "EXEC", b"\x03\x00": "DYN",
         b"\x04\x00": "CORE", b"\xFE\x00": "LOOS", b"\xFE\xFF": "HIOS",
         b"\xFF\x00": "LOPROC", b"\xFF\xFF": "HIPROC"
     }
 
+    # Sets elf_type
     if file_data[16:18] in elf_types:
         elf_type = elf_types[file_data[16:18]]
     
     # print(file_data[16:18])
     #print(elf_type)
 
-    #Identify Instruction Set
+    # Ditionary of Possible Instruction Sets for ELF Files
     elf_instruction_sets = {
         b"\x00\x00": "No specific instruction set",
         b"\x01\x00": "AT&T WE 32100",
@@ -219,12 +230,16 @@ def parse_elf():
         b"\x10\x20": "LoongArch"
     }
 
+    # Sets elf_instruction_set
     if file_data[18:20] in elf_instruction_sets:
         elf_instruction_set = elf_instruction_sets[file_data[18:20]]
 
     #print(elf_instruction_set)
 
-    #Pull Entry point address
+    # Gets and Sets 32 Bit ELF Offsetts
+    # Entry Point, Program Header Offset, Section Header Offset, Flags, 
+    # Program Header Entry Size, Program Header Entries, Section Header Entry Size, 
+    # Section Header Entries, Section Header Index
     if elf_class == "32 Bit":
         elf_entry = file_data[24:28].hex()
 
@@ -247,7 +262,10 @@ def parse_elf():
 
 
 
-    #64 bit ELF Offsetts
+    # Gets and Sets 64 bit ELF Offsetts
+    # Entry Point, Program Header Offset, Section Header Offset, Flags,
+    # Program Header Entry Size, Program Header Entries, Section Header Entry Size,
+    # Section Header Entries, Section Header Index
     elif elf_class == "64 Bit":
         elf_entry = file_data[24:32].hex()
 
@@ -267,7 +285,9 @@ def parse_elf():
 
         elf_sh_index = file_data[62:64].hex()
     
-    #Swap to big endian if LE
+
+
+    # Swaps to Big Endian if data_endian is Little Endian
     if data_endian == "Little Endian":
         elf_entry = little_to_big(elf_entry)
         elf_ph_offset = little_to_big(elf_ph_offset)
@@ -279,7 +299,7 @@ def parse_elf():
         elf_sh_entries = little_to_big(elf_sh_entries)
         elf_sh_index = little_to_big(elf_sh_index)
 
-
+    # print for debug
     #print(elf_entry)
     #print(elf_ph_offset)
     #print(elf_sh_offset)
@@ -290,7 +310,7 @@ def parse_elf():
     #print(elf_sh_entries)
     #print(elf_sh_index)
 
-    #Format Output Text
+    # Sets output_text with parsed values
     output_text += "ELF Class: \t\t" + elf_class + "\n"
     output_text += "Data Format: \t\t" + data_endian + "\n"
     output_text += "ELF Version: \t\t" + elf_version + "\n"
@@ -309,8 +329,12 @@ def parse_elf():
     output_text += "Section Headers Present \t" + elf_sh_entries.lstrip('0') + "\t\t" + str(int(elf_sh_entries, 16)) + "\n"
     output_text += "Section Header index \t\t" + elf_sh_index.lstrip('0') + "\t\t" + str(int(elf_sh_index, 16)) + "\n"
 
-#Parses 32 Bit ELF Program Header Table and returns a pandas dataframe
+
+
+
+#Parses 32 Bit ELF Program Header Table and stores results in elf_pheaders_df
 def parse_elf_ph_32():
+    # Declare global variables
     global file_data
     global elf_pheaders_df
     global data_endian
@@ -319,10 +343,12 @@ def parse_elf_ph_32():
     global elf_ph_entry_size
     global elf_ph_entries
 
+    # Define Local Variables
     number_of_entries = int(elf_ph_entries, 16)
     offset = int(elf_ph_offset, 16)
     entry_size = int(elf_ph_entry_size, 16)
 
+    # Dictionary of ELF Program Header Types
     p_types = {
         b"\x00\x00\x00\x00":	"NULL",
         b"\x00\x00\x00\x01":	"LOAD",
@@ -346,6 +372,7 @@ def parse_elf_ph_32():
         b"\x70\x00\x00\x00":    "ARM_ARCHEXT"
     }
 
+    # Dictionary of ELF Program Header Flags
     p_flags = {
         1: "X",
         2: "W",
@@ -355,39 +382,55 @@ def parse_elf_ph_32():
         7: "WRX"
     }
 
+    # List to store rows for DataFrame
     rows = []
+
+    # Loop through each Program Header Entry and add values to dataframe
     for i in range(number_of_entries):
+        # Calculate offset for Program Header Entry
         ph_offset = offset + i * entry_size
+
+        # Calculate end of Program Header Entry
         end = ph_offset + entry_size
+
+        # Get Program Header Entry Data
         ph_data = file_data[ph_offset:end]
 
-
+        # Get Program Header Type
         type_data = ph_data[:4]
         type_data = type_data[::-1]
         if type_data in p_types:
             p_type = p_types[type_data]
         else: p_type = "uknown"
 
+        # Get Program Header Offset
         p_offset = ph_data[4:8]
         p_offset = p_offset[::-1].hex().lstrip('0')
 
+        # Get Program Header Virtual Address
         p_vaddr = ph_data[8:12]
         p_vaddr = p_vaddr[::-1].hex().lstrip('0')
 
+        # Get Program Header Physical Address
         p_paddr = ph_data[12:16]
         p_paddr = p_paddr[::-1].hex().lstrip('0')
 
+        # Get Program Header File Size
         p_filesz = ph_data[16:20]
         p_filesz = p_filesz[::-1].hex().lstrip('0')
 
+        # Get Program Header Memory Size
         p_memsz = ph_data[20:24]
         p_memsz = p_memsz[::-1].hex().lstrip('0')
 
+        # Get Program Header Flag
         if ph_data[24] in p_flags:
             p_flag = p_flags[ph_data[24]]
 
+        # Get Program Header Alignment
         p_align = hex(ph_data[28])
 
+        # Create a dictionary for the dataframe
         row_dict = {
             "Type": p_type,
             "OffsetInFile": p_offset,
@@ -398,13 +441,21 @@ def parse_elf_ph_32():
             "Flags":p_flag,
             "Alignment": p_align,
         }
+
+        # Append the dictionary to the rows list
         rows.append(row_dict)
 
+    # Create a DataFrame from the rows list
     elf_pheaders_df = pd.DataFrame(rows)
-    print(elf_pheaders_df)
 
-#Parses 64 Bit ELF Program Header Table and returns a pandas dataframe
+
+
+
+
+
+# Parses 64 Bit ELF Program Header Table and returns a pandas dataframe
 def parse_elf_ph_64():
+    # Declare global variables
     global file_data
     global elf_pheaders_df
     global data_endian
@@ -413,12 +464,14 @@ def parse_elf_ph_64():
     global elf_ph_entry_size
     global elf_ph_entries
 
+    # Define Local Variables
     number_of_entries = int(elf_ph_entries, 16)
     offset = int(elf_ph_offset, 16)
     entry_size = int(elf_ph_entry_size, 16)
 
 
-    #Found more types online https://reviews.llvm.org/D70959
+    # Found more types online https://reviews.llvm.org/D70959
+    # Dictionary of ELF Program Header Types
     p_types = {
         b"\x00\x00\x00\x00":	"NULL",
         b"\x00\x00\x00\x01":	"LOAD",
@@ -443,6 +496,7 @@ def parse_elf_ph_64():
         b"\x64\x74\xe5\x53":    "GNU_PROPERTY" 
     }
 
+    # Dictionary of ELF Program Header Flags
     p_flags = {
         1: "X",
         2: "W",
@@ -452,12 +506,22 @@ def parse_elf_ph_64():
         7: "WRX"
     }
 
+    # List to store rows for DataFrame
     rows = []
+
+    # Loop through each Program Header Entry and add values to dataframe
     for i in range(number_of_entries):
+
+        # Calculate offset for Program Header Entry
         ph_offset = offset + i * entry_size
+
+        # Calculate end of Program Header Entry
         end = ph_offset + entry_size
+
+        # Get Program Header Entry Data
         ph_data = file_data[ph_offset:end]
 
+        # Get Program Header Type
         type_data = ph_data[:4]
         type_data = type_data[::-1]
         if type_data in p_types:
@@ -466,30 +530,37 @@ def parse_elf_ph_64():
         
         #print(type_data)
 
-        #Only really care about read, write, and execute
+        # Only really care about read, write, and execute
+        # Get Program Header Flag
         flag_data = ph_data[4]
         if flag_data in p_flags:
             p_flag = p_flags[flag_data]
 
+        # Get Program Header Offset
         p_offset = ph_data[8:16]
         p_offset = p_offset[::-1].hex().lstrip('0')
 
+        # Get Program Header Virtual Address
         p_vaddr = ph_data[16:24]
         p_vaddr = p_vaddr[::-1].hex().lstrip('0')
 
+        # Get Program Header Physical Address
         p_paddr = ph_data[24:32]
         p_paddr = p_paddr[::-1].hex().lstrip('0')
 
+        # Get Program Header File Size
         p_filesz = ph_data[32:40]
         p_filesz = p_filesz[::-1].hex().lstrip('0')
 
+        # Get Program Header Memory Size
         p_memsz = ph_data[40:48]
         p_memsz = p_memsz[::-1].hex().lstrip('0')
 
+        # Get Program Header Alignment
         p_align = ph_data[48:49].hex()
 
         
-
+        # Create a dictionary for the dataframe
         row_dict = {
             "Type": p_type,
             "OffsetInFile": p_offset,
@@ -500,13 +571,15 @@ def parse_elf_ph_64():
             "Flags":p_flag,
             "Alignment": p_align,
         }
+        # Append the dictionary to the rows list
         rows.append(row_dict)
 
+    # Create a DataFrame from the rows list
     elf_pheaders_df = pd.DataFrame(rows)
-    print(pd.DataFrame(rows))
 
-
+# Parses 32 Bit ELF Section Header Table and stores results in elf_sheaders_df
 def parse_elf_sh_32():
+    # Declare global variables
     global file_data
     global elf_sheaders_df
     global data_endian
@@ -515,12 +588,14 @@ def parse_elf_sh_32():
     global elf_sh_entry_size
     global elf_sh_entries
     
+    # Define Local Variables
     number_of_entries = int(elf_sh_entries, 16)
     offset = int(elf_sh_offset, 16)
     entry_size = int(elf_sh_entry_size, 16)
 
     #print(offset)
 
+    # Dictionary of ELF Section Header Types
     s_types = {
         0x00:	"NULL",
         0x1:	"PROGBITS",
@@ -546,7 +621,8 @@ def parse_elf_sh_32():
         0xfe:   "VERNEED",
     }
 
-    #I Used ReadELF and ChatGPT to name flags here
+    # I Used ReadELF and ChatGPT to name flags here
+    # Dictionary of ELF Section Header Flags
     flags = {
         0x0:    "0",
         0x1:    "W",
@@ -565,54 +641,74 @@ def parse_elf_sh_32():
 
     }
 
+    # List to store rows for DataFrame
     rows = []
 
+    # Loop through each Section Header Entry and add values to dataframe
     for i in range(number_of_entries):
+
+        # Calculate offset for Section Header Entry
         sh_offset = offset + i * entry_size
+
+        # Calculate end of Section Header Entry
         end = sh_offset + entry_size
+
+        # Get Section Header Entry Data
         sh_data = file_data[sh_offset:end]
 
-
+        # Get Section Header Name address
         s_name = sh_data[:4]
         s_name = s_name[::-1].hex().lstrip('0')
 
+
+        # Get Section Header Type
         type_data = sh_data[4]
 
         #print(hex(type_data))
+
+        # Get section type against type dictionary
         if type_data in s_types:
             s_type = s_types[type_data]
         else: s_type = "uknown"
         
         #print(type_data)
 
+        # Get Section Header Flag
         flag_data = sh_data[8]
         if flag_data in flags:
             s_flag = flags[flag_data]
         else: s_flag = "unknown"
 
+        # Get Section Header Virtual Address
         s_vaddr = sh_data[12:16]
         s_vaddr = s_vaddr[::-1].hex().lstrip('0')
 
+        # Get Section Header Offset
         s_offset = sh_data[16:20]
         s_offset = s_offset[::-1].hex().lstrip('0')
 
+        # Get Section Header Size  
         s_size = sh_data[20:24]
         s_size = s_size[::-1].hex().lstrip('0')
 
+        # Get Section Header Link
         s_link = sh_data[24:28]
         s_link = s_link[::-1].hex().lstrip('0')
 
+        # Get Section Header Info
         s_info = sh_data[28:32]
         s_info = s_info[::-1].hex().lstrip('0')
 
+        # Get Section Header Alignment
         s_align = sh_data[32:36]
         s_align = s_align[::-1].hex().lstrip('0')
 
+        # Get Section Header Entry Size
         s_entry_size = sh_data[36:40]
         s_entry_size = s_entry_size[::-1].hex().lstrip('0')
 
         
-
+        # Create a dictionary for the dataframe
         row_dict = {
             "Name Offset":  s_name,
             "Type":         s_type,
@@ -625,12 +721,19 @@ def parse_elf_sh_32():
             "Alignment":    s_align,
             "Entry Size":   s_entry_size
         }
+        # Append the dictionary to the rows list
         rows.append(row_dict)
 
+    # Create a DataFrame from the rows list
     elf_sheaders_df = pd.DataFrame(rows)
-    print(pd.DataFrame(rows))
 
+
+
+
+
+# Parses 64 Bit ELF Section Header Table and returns a pandas dataframe
 def parse_elf_sh_64():
+    # Declare global variables
     global file_data
     global elf_sheaders_df
     global data_endian
@@ -639,12 +742,14 @@ def parse_elf_sh_64():
     global elf_sh_entry_size
     global elf_sh_entries
 
+    # Define Local Variables
     number_of_entries = int(elf_sh_entries, 16)
     offset = int(elf_sh_offset, 16)
     entry_size = int(elf_sh_entry_size, 16)
 
     #print(offset)
 
+    # Dictionary of 64Bit ELF Section Header Types
     s_types = {
         0x00:	"NULL",
         0x1:	"PROGBITS",
@@ -670,7 +775,8 @@ def parse_elf_sh_64():
         0xfe:   "VERNEED",
     }
 
-    #I Used ReadELF and ChatGPT to name flags here
+    # I Used ReadELF and ChatGPT to name flags here
+    # Dictionary of 64Bit ELF Section Header Flags
     flags = {
         0x0:    "0",
         0x1:    "W",
@@ -689,54 +795,69 @@ def parse_elf_sh_64():
 
     }
 
+    # List to store rows for DataFrame
     rows = []
 
+    # Loop through each Section Header Entry and add values to dataframe
     for i in range(number_of_entries):
+
+        # Calculate offset for Section Header Entry
         sh_offset = offset + i * entry_size
+
+        # Calculate end of Section Header Entry
         end = sh_offset + entry_size
+
+        # Get Section Header Entry Data
         sh_data = file_data[sh_offset:end]
 
-
+        # Get Section Header Name address
         s_name = sh_data[:4]
         s_name = s_name[::-1].hex().lstrip('0')
 
+        # Get Section Header Type
         type_data = sh_data[4]
-
         #print(hex(type_data))
         if type_data in s_types:
             s_type = s_types[type_data]
         else: s_type = "uknown"
         
-
+        # Get Section Header Flag
         flag_data = sh_data[8]
         if flag_data in flags:
             s_flag = flags[flag_data]
-        
         else: s_flag = "unknown"
         # print(flag_data)
+
+        # Get Section Header Virtual Address
         s_vaddr = sh_data[16:24]
         s_vaddr = s_vaddr[::-1].hex().lstrip('0')
 
+        # Get Section Header Offset
         s_offset = sh_data[24:32]
         s_offset = s_offset[::-1].hex().lstrip('0')
 
+        # Get Section Header Size
         s_size = sh_data[32:40]
         s_size = s_size[::-1].hex().lstrip('0')
 
+        # Get Section Header Link
         s_link = sh_data[40:44]
         s_link = s_link[::-1].hex().lstrip('0')
 
+        # Get Section Header Info
         s_info = sh_data[44:48]
         s_info = s_info[::-1].hex().lstrip('0')
 
+        # Get Section Header Alignment
         s_align = sh_data[48:56]
         s_align = s_align[::-1].hex().lstrip('0')
 
+        # Get Section Header Entry Size
         s_entry_size = sh_data[56:64]
         s_entry_size = s_entry_size[::-1].hex().lstrip('0')
 
         
-
+        # Create a dictionary for the dataframe
         row_dict = {
             "Name Offset":  s_name,
             "Type":         s_type,
@@ -749,43 +870,57 @@ def parse_elf_sh_64():
             "Alignment":    s_align,
             "Entry Size":   s_entry_size
         }
+        # Append the dictionary to the rows list
         rows.append(row_dict)
-
+    # Create a DataFrame from the rows list
     elf_sheaders_df = pd.DataFrame(rows)
-    print(pd.DataFrame(rows))
 
+# Parse PE File Headers
 def parse_pe():
     print("Parsing PE Header")
 
 
 if __name__ == '__main__':
+    # Check for user arg
     if len(sys.argv) < 2:
         print("Please provide a binary to analyze.")
         sys.exit(1)
 
+    # Read the file
     file_name = sys.argv[1]
     print("Reading File:", file_name.strip())
     read_file(file_name)
     identify_filetype()
 
+    # If ELF, parse ELF
     if file_type == "ELF":
         parse_elf()
         print(output_text)
 
+        # If 32 Bit ELF, parse remainder 32 Bit ELF
         if elf_class == "32 Bit":
             print("\n")
             parse_elf_ph_32()
+            print(elf_pheaders_df)
             print("\n")
             parse_elf_sh_32()
+            print(elf_sheaders_df)
+            print("\n")
 
+        # If 64 Bit ELF, parse remainder 64 Bit ELF
         elif elf_class == "64 Bit":
             print("\n")
             parse_elf_ph_64()
+            print(elf_pheaders_df)
             print("\n")
             parse_elf_sh_64()
+            print(elf_sheaders_df)
+            print("\n")
+        # If neither 32 or 64 Bit, quit
         else:
             print("Goodbye")
     
+    # If PE, parse PE
     elif file_type == "PE":
         parse_pe()
         print(output_text)
