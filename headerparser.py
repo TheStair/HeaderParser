@@ -92,7 +92,7 @@ def little_to_big(string):
 # Parses the ELF File Header and Assigns values to global variables
 # Modifies output_text with the parsed values and formats for output
 def parse_elf():
-    print("Parsing ELF Header")
+    
     # Declare global variables
     global elf_class
     global elf_version
@@ -909,6 +909,7 @@ if __name__ == '__main__':
 
     # If ELF, parse ELF
     if file_type == "ELF":
+        print("Parsing ELF Header")
         parse_elf()
         print(output_text)
 
