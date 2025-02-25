@@ -117,6 +117,8 @@ def parse_elf():
 
     elif file_data[4] == 2:
         elf_class = "64 Bit"
+    
+    else: elf_class = "Error"
 
     # print for debug
     #print(elf_class)
@@ -128,11 +130,14 @@ def parse_elf():
     elif file_data[5] == 0x02:
         data_endian = "Big Endian"
     
+    else: data_endian = "Error"
+    
     #print(data_endian)
 
     # Sets ELF Version
     if file_data[6] == 0x01:
         elf_version = "1"
+    else: elf_version = "Not 1"
     
     #print(elf_version)
 
@@ -148,6 +153,7 @@ def parse_elf():
     # Sets elf_target_os
     if file_data[7] in elf_targets:
         elf_target_os = elf_targets[file_data[7]]
+    else: elf_target_os = "Unknown"
     
     #print(elf_target_os)
 
@@ -161,7 +167,8 @@ def parse_elf():
     # Sets elf_type
     if file_data[16:18] in elf_types:
         elf_type = elf_types[file_data[16:18]]
-    
+    else: elf_type = "Unknown"
+
     # print(file_data[16:18])
     #print(elf_type)
 
@@ -241,6 +248,7 @@ def parse_elf():
     # Sets elf_instruction_set
     if file_data[18:20] in elf_instruction_sets:
         elf_instruction_set = elf_instruction_sets[file_data[18:20]]
+    else: elf_instruction_set = "Unknown"
 
     #print(elf_instruction_set)
 
@@ -435,6 +443,7 @@ def parse_elf_ph_32():
         # Get Program Header Flag
         if ph_data[24] in p_flags:
             p_flag = p_flags[ph_data[24]]
+        else: p_flag = "unknown"
 
         # Get Program Header Alignment
         p_align = hex(ph_data[28])
@@ -542,6 +551,7 @@ def parse_elf_ph_64():
         flag_data = ph_data[4]
         if flag_data in p_flags:
             p_flag = p_flags[flag_data]
+        else: p_flag = "unknown"
 
         # Get Program Header Offset
         p_offset = ph_data[8:16]
@@ -940,3 +950,7 @@ if __name__ == '__main__':
     elif file_type == "PE":
         parse_pe()
         print(output_text)
+
+    else:
+        print("Not an ELF or PE File")
+        sys.exit(1)
