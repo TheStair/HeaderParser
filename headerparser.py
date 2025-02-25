@@ -934,7 +934,7 @@ if __name__ == '__main__':
             print("\n")
         # If neither 32 or 64 Bit, quit
         else:
-            print("Goodbye")
+            print("Not an ELF")
     
     # If PE, parse PE
     elif file_type == "PE":
