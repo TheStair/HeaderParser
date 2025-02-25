@@ -323,6 +323,7 @@ def parse_elf():
     output_text += "Data Format: \t\t" + data_endian + "\n"
     output_text += "ELF Version: \t\t" + elf_version + "\n"
     output_text += "Target OS: \t\t" + elf_target_os + "\n"
+    output_text += "Instruction Set: \t" + elf_instruction_set + "\n"
     output_text += "Executable Type: \t" + elf_type + "\n"
     output_text += "Program Flags: \t \t" + elf_flags + "\n"
 
@@ -335,7 +336,7 @@ def parse_elf():
     output_text += "Section Header OFFSET \t\t" + elf_sh_offset.lstrip('0') + "\t\t" + str(int(elf_sh_offset, 16)) + "\n"
     output_text += "Section Header Size \t\t" + elf_sh_entry_size.lstrip('0') + "\t\t" + str(int(elf_sh_entry_size, 16)) + "\n"
     output_text += "Section Headers Present \t" + elf_sh_entries.lstrip('0') + "\t\t" + str(int(elf_sh_entries, 16)) + "\n"
-    output_text += "Section Header index \t\t" + elf_sh_index.lstrip('0') + "\t\t" + str(int(elf_sh_index, 16)) + "\n"
+    output_text += "String Table Index \t\t" + elf_sh_index.lstrip('0') + "\t\t" + str(int(elf_sh_index, 16)) + "\n"
 
 
 
