@@ -333,9 +333,9 @@ def parse_elf():
     output_text += "Program Header OFFSET \t\t" + elf_ph_offset.lstrip('0') + "\t\t" + str(int(elf_ph_offset, 16)) + "\n"
     output_text += "Program Header Size \t\t" + elf_ph_entry_size.lstrip('0') + "\t\t" + str(int(elf_ph_entry_size, 16)) + "\n"
     output_text += "Program Headers Present \t" + elf_ph_entries.lstrip('0') + "\t\t" + str(int(elf_ph_entries, 16)) + "\n"
-    output_text += "Section Header OFFSET \t\t" + elf_sh_offset.lstrip('0') + "\t\t" + str(int(elf_sh_offset, 16)) + "\n"
-    output_text += "Section Header Size \t\t" + elf_sh_entry_size.lstrip('0') + "\t\t" + str(int(elf_sh_entry_size, 16)) + "\n"
-    output_text += "Section Headers Present \t" + elf_sh_entries.lstrip('0') + "\t\t" + str(int(elf_sh_entries, 16)) + "\n"
+    output_text += "Section Table OFFSET \t\t" + elf_sh_offset.lstrip('0') + "\t\t" + str(int(elf_sh_offset, 16)) + "\n"
+    output_text += "Section Table Entry Size \t" + elf_sh_entry_size.lstrip('0') + "\t\t" + str(int(elf_sh_entry_size, 16)) + "\n"
+    output_text += "Section Table Entries \t\t" + elf_sh_entries.lstrip('0') + "\t\t" + str(int(elf_sh_entries, 16)) + "\n"
     output_text += "String Table Index \t\t" + elf_sh_index.lstrip('0') + "\t\t" + str(int(elf_sh_index, 16)) + "\n"
 
 
