@@ -24,7 +24,7 @@ file_data = b""
 file_length = 0
 output_text = ""
 
-
+# Making a change for a demonstration of git
 #elf variables (Global to be used in future functionality)
 elf_class = ""                      # 32 v 64 Bit
 elf_version = ""                    # 1 for original ELF
